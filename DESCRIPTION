@@ -1,13 +1,28 @@
 Package: violentSurv
 Type: Package
-Title: What the Package Does (Title Case)
+Title: violent track survival analysis
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Authors@R: 
+    person(given = "Erjie",
+           family = "Zhao",
+           email = "2055469819@qq.com",
+           role = c("aut", "cre"))
+Maintainer: Erjie Zhao <2055469819@qq.com>
+Description: This is a package for signature choose in survival analysis.
 License: CC0
 Encoding: UTF-8
 LazyData: true
 Imports: 
-    survival
+    survival,
+    stats,
+    magrittr,
+    base,
+    utils,
+    tibble,
+    dplyr,
+    purrr,
+    tidyr
+RoxygenNote: 7.1.1
+Depends: 
+    R (>= 2.10)
+Roxygen: list(markdown = TRUE)
