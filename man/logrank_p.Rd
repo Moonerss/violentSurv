@@ -4,7 +4,7 @@
 \alias{logrank_p}
 \title{calculate logrank test p value}
 \usage{
-logrank_p(data, time = "time", event = "status", variate)
+logrank_p(data, time = "time", event = "status", variate, verbose = TRUE)
 }
 \arguments{
 \item{data}{a \code{data.frame} containing variables, time and status.}
@@ -14,12 +14,19 @@ logrank_p(data, time = "time", event = "status", variate)
 \item{event}{column name specifying event status, default is 'status'.}
 
 \item{variate}{column names of specific variables in the survival model.}
+
+\item{verbose}{output other useful information, default TRUE.}
 }
 \value{
-return the logrank test p value
+return a tibble object. The first column is the variate name,
+the second column is the logrank test p value, the third column is the Survival Object.
 }
 \description{
 calculate logrank test p value
+}
+\note{
+If there is some wrong with the logrank test, the function will set logrank p value to 1 automatically.
+So set \code{verbose} argument to TRUE is necessary to check these events.
 }
 \examples{
 library(survival)

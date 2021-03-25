@@ -15,44 +15,54 @@
 #' samller than the value
 #' @param keep_data whether to keep the data used to compute logrank test in this function,
 #' It may be very important for follow-up analysis.
-#' @importFrom  dplyr bind_cols left_join group_by ungroup mutate filter select all_of
-#' @importFrom  purrr map reduce map_dbl map2
+#' @importFrom dplyr bind_cols left_join group_by ungroup mutate filter select all_of bind_rows
+#' @importFrom purrr map reduce map_dbl map2
 #' @importFrom tidyr nest
+#' @import cli
 #' @export
-#' @return
+#' @examples
 #' data(blca_clinical)
 #' data(blca_exp)
 #' train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
-#'                 exp_data = blca_exp, genes = c("TP53", "BRCA1", "BRCA2", "RB1"), num = 2:4,
+#'                 exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
 #'                 beta = NULL, labels_value = 1, cut_p = 1, keep_data = F)
 
 train_signature <- function(surv_data, id = "ids", time = "time", event = "status",
                             exp_data, genes, num, beta = NULL, labels_value = NULL,
                             cut_p = NULL, keep_data = FALSE) {
+  cli::cli_process_start("Checking the data")
   stopifnot(is.data.frame(surv_data))
   stopifnot(all(is.element(c(id, time, event), colnames(surv_data))))
   stopifnot(is.matrix(exp_data), is.numeric(exp_data), all(is.element(genes, rownames(exp_data))))
+  cli::cli_process_done()
 
   # get overlap samples
+  cli::cli_process_start("Getting overlap samples")
   co_samples <- intersect(surv_data[[id]], colnames(exp_data))
   surv_data <- surv_data[match(co_samples, surv_data[[id]]) ,]
   exp_data <- exp_data[, co_samples]
+  cli::cli_process_done()
 
   # get beta value
+  cli::cli_process_start("Getting beta value")
   if (is.null(beta)) {
     dat <- surv_data[, c(id, time, event)] %>%
       dplyr::bind_cols(as.data.frame(t(exp_data[genes,])))
-    cox_obj <- run_cox(data = dat, time = time, event = event,
-                       variate = genes, multicox = F, global_method = "wald")
+    cox_obj <- run_cox_parallel(data = dat, time = time, event = event,
+                                variate = genes, multicox = F, global_method = "wald", verbose = F)
     beta <- get_beta(cox_obj)
   } else {
     beta <- beta
   }
+  cli::cli_process_done()
 
   # get signature combinations
+  cli::cli_process_start("Combining signatures")
   signature_list <- combn_signature(genes = genes, n = num)
+  cli::cli_process_done()
 
   # get risk score
+  cli::cli_process_start("Calculating risk score")
   all_score <- purrr::map(signature_list, function(x) {
     x %<>% t() %>% as.data.frame()
     purrr::map(x, function(y) {
@@ -65,24 +75,29 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
     dplyr::group_by(signature) %>%
     nest() %>%
     ungroup()
+  cli::cli_process_done()
 
-  # get labels
+  # set labels
+  cli::cli_process_start("Setting labels")
   case <- all_score %>%
     dplyr::pull(data) %>%
     purrr::map(~label_sample(score = .x$risk_score, value = labels_value))
   labeled_sample <- all_score %>%
     dplyr::mutate(data = purrr::map2(data, case, function(x, y) {x %>% dplyr::mutate(labels = y$labeled_sample)}),
                   cutoff_value = purrr::map_dbl(case, ~.x$value))
+  cli::cli_process_done()
 
   # do logrank test
+  cli::cli_process_start("Evaluating logrank test")
   logrank_res <- labeled_sample %>%
     dplyr::mutate(logrank_pval = purrr::map_dbl(data, function(x) {
-      tryCatch(logrank_p(data = x, time = time, event = event, variate = "labels"),
-               error = function(e) {2})
+      logrank_p(data = x, time = time, event = event, variate = "labels", verbose = F) %>% pull(p_value)
     }) %>% unlist()) %>%
     dplyr::select(signature, cutoff_value, logrank_pval, data)
+  cli::cli_process_done()
 
   # get result
+  cli::cli_process_start("Filtering result")
   if (is.null(cut_p)) {
     if (isTRUE(keep_data)) {
       res <- logrank_res
@@ -97,5 +112,23 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
         dplyr::select(-data)
     }
   }
+  class(res) <- c("training", class(res))
+  cli::cli_process_done()
+
   return(res)
 }
+
+
+#' @name validate_signature
+#' @title Validate the signature model in a data sets
+#' @description
+#' @param
+#' @export
+#' @author
+#' @return
+#' @examples
+#'
+validate_signature <- function() {
+
+}
+

@@ -44,13 +44,13 @@ samller than the value}
 \item{keep_data}{whether to keep the data used to compute logrank test in this function,
 It may be very important for follow-up analysis.}
 }
-\value{
+\description{
+this function will filter the signature are not significant in the logrank test
+}
+\examples{
 data(blca_clinical)
 data(blca_exp)
 train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
-exp_data = blca_exp, genes = c("TP53", "BRCA1", "BRCA2", "RB1"), num = 2:4,
-beta = NULL, labels_value = 1, cut_p = 1, keep_data = F)
-}
-\description{
-this function will filter the signature are not significant in the logrank test
+                exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
+                beta = NULL, labels_value = 1, cut_p = 1, keep_data = F)
 }
