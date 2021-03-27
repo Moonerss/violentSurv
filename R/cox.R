@@ -88,7 +88,11 @@ run_cox_parallel <- function(data, time = "time", event = "status",
     }
   } else {
     oplan <- future::plan()
-    future::plan("multiprocess")
+    if (.Platform$OS.type == "windows") {
+      future::plan("multisession")
+    } else {
+      future::plan("multicore")
+    }
     on.exit(future::plan(oplan), add = TRUE)
     res <- furrr::future_map(variate, one_cox, data, time, event, multicox, method = global_method) %>%
       purrr::reduce(dplyr::add_row)
