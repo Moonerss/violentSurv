@@ -138,3 +138,21 @@ validate_signature <- function(train_sig = NULL, surv_data, id = "ids", time = "
 
 }
 
+
+#' @title train_unicox
+#'
+train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) {
+
+  if (!is(obj, "training_signature")) {
+    stop("The `obj` is not a `training_signature` object!")
+  }
+
+  var <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
+  obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, run_cox_parallel, variate = var, multicox = FALSE,
+                         global_method = "wald", verbose = FALSE)) %>%
+    dplyr::mutate(unicox_pval = purrr::map(unicox_pval, dplyr::pull, p_value) %>% unlist()) %>%
+    dplyr::filter(unicox_pval < cut_p) %>%
+    dplyr::select(c(1:3, 6, 4:5))
+  class(obj) <- append(class(obj), "train_unicox")
+  return(obj)
+}
