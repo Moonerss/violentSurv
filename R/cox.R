@@ -57,7 +57,6 @@ run_cox <- function(data, time = "time", event = "status",
 #' should be one of "likelihood", "wald", "logrank".
 #' The likelihood-ratio test, Wald test, and score logrank statistics.
 #' These three methods are asymptotically equivalent. Default is "wald".
-#' @param verbose output other useful information.
 #' @importFrom  survival coxph Surv
 #' @importFrom  dplyr tibble
 #' @importFrom  purrr reduce
@@ -75,7 +74,7 @@ run_cox <- function(data, time = "time", event = "status",
 #'
 run_cox_parallel <- function(data, time = "time", event = "status",
                     variate, multicox = FALSE,
-                    global_method = c("likelihood", "wald", "logrank"), verbose = TRUE) {
+                    global_method = c("likelihood", "wald", "logrank")) {
   stopifnot(is.data.frame(data))
   stopifnot(is.character(variate), is.vector(variate), all(is.element(variate, colnames(data))))
 
