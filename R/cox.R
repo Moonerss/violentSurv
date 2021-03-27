@@ -60,7 +60,7 @@ run_cox <- function(data, time = "time", event = "status",
 #' @param nThread The number of threads.
 #' @param maxSize The max memory size in global, default 500MB, the unit is MB.
 #' @param verbose output other useful information.
-#' @importFrom  survival coxph
+#' @importFrom  survival coxph Surv
 #' @importFrom  dplyr tibble
 #' @importFrom  purrr reduce
 #' @importFrom  magrittr %<>%

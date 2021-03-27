@@ -69,15 +69,16 @@ risk_score <- function(exp_data, genes, beta) {
 
   # extract the gene beta
   sub_beta <- beta %>% dplyr::filter(is.element(Variable, genes)) %>%
-    {.[match(genes, dplyr::pull(.,Variable)),]} %>%
-    dplyr::pull(beta)
+    {.[match(genes, dplyr::pull(.,Variable)),]}
+
 
   # weighted expression
-  weighted_exp <- exp_data * sub_beta
+  weighted_exp <- exp_data * dplyr::pull(sub_beta, beta)
   scores <- apply(weighted_exp, 2, sum)
 
   res <- dplyr::tibble(
-    signature = paste(genes, collapse = "_"),
+    signature = paste(genes, collapse = " "),
+    # beta_value = tibble::as_tibble(sub_beta),
     ids = names(scores),
     risk_score = scores
   )

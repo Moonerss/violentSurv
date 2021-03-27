@@ -75,6 +75,11 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
     dplyr::group_by(signature) %>%
     nest() %>%
     ungroup()
+  all_score %<>% dplyr::mutate(beta_value = purrr::map(signature, function(x) {
+    sig <- unlist(strsplit(x, split = " "))
+    res <- dplyr::slice(beta, match(sig, Variable))
+  })) %>% dplyr::mutate(beta_value = purrr::map(beta_value, function(x) {
+    class(x) <- setdiff(class(x), "run_cox"); x}))
   cli::cli_process_done()
 
   # set labels
@@ -93,7 +98,7 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
     dplyr::mutate(logrank_pval = purrr::map_dbl(data, function(x) {
       logrank_p(data = x, time = time, event = event, variate = "labels", verbose = F) %>% pull(p_value)
     }) %>% unlist()) %>%
-    dplyr::select(signature, cutoff_value, logrank_pval, data)
+    dplyr::select(signature, cutoff_value, logrank_pval, beta_value, data)
   cli::cli_process_done()
 
   # get result
@@ -112,7 +117,7 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
         dplyr::select(-data)
     }
   }
-  class(res) <- c("training", class(res))
+  class(res) <- c("training_signature", class(res))
   cli::cli_process_done()
 
   return(res)
@@ -128,7 +133,8 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
 #' @return
 #' @examples
 #'
-validate_signature <- function() {
+validate_signature <- function(train_sig = NULL, surv_data, id = "ids", time = "time", event = "status",
+                               exp_data, cut_p = NULL) {
 
 }
 
