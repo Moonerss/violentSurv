@@ -57,8 +57,6 @@ run_cox <- function(data, time = "time", event = "status",
 #' should be one of "likelihood", "wald", "logrank".
 #' The likelihood-ratio test, Wald test, and score logrank statistics.
 #' These three methods are asymptotically equivalent. Default is "wald".
-#' @param nThread The number of threads.
-#' @param maxSize The max memory size in global, default 500MB, the unit is MB.
 #' @param verbose output other useful information.
 #' @importFrom  survival coxph Surv
 #' @importFrom  dplyr tibble
@@ -77,8 +75,7 @@ run_cox <- function(data, time = "time", event = "status",
 #'
 run_cox_parallel <- function(data, time = "time", event = "status",
                     variate, multicox = FALSE,
-                    global_method = c("likelihood", "wald", "logrank"),
-                    nThread = 2, maxSize = 500, verbose = TRUE) {
+                    global_method = c("likelihood", "wald", "logrank"), verbose = TRUE) {
   stopifnot(is.data.frame(data))
   stopifnot(is.character(variate), is.vector(variate), all(is.element(variate, colnames(data))))
 
@@ -90,7 +87,9 @@ run_cox_parallel <- function(data, time = "time", event = "status",
       res <- one_cox(var = variate, data, time, event, multicox, method = global_method)
     }
   } else {
-    enableParallel(nThread = nThread, maxSize = maxSize, verbose = verbose)
+    oplan <- future::plan()
+    future::plan("multiprocess")
+    on.exit(future::plan(oplan), add = TRUE)
     res <- furrr::future_map(variate, one_cox, data, time, event, multicox, method = global_method) %>%
       purrr::reduce(dplyr::add_row)
   }
