@@ -21,7 +21,7 @@
 #' @import cli
 #' @export
 #' @examples
-#' \dotrun{
+#' \dontrun{
 #' data(blca_clinical)
 #' data(blca_exp)
 #' obj <- train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
@@ -140,7 +140,7 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
 #' @return return a `training_signature` object with `unicox_pval` column.
 #' @export
 #' @example
-#' \dotrun{
+#' \dontrun{
 #'   uni_cox_obj <- train_unicox(obj, type = "discrete", cut_p = 1)
 #' }
 #'
@@ -152,11 +152,16 @@ train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) 
   obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, optimal_cox, variate = var, multicox = FALSE,
                          global_method = "wald")) %>%
     dplyr::mutate(unicox_pval = purrr::map(unicox_pval, dplyr::pull, p_value) %>% unlist()) %>%
-    dplyr::filter(unicox_pval < cut_p) %>%
-    dplyr::select(c(1:3, 6, 4:5))
+    dplyr::filter(unicox_pval < cut_p)
+
+  if (rlang::has_name(obj, "multicox_pval")) {
+    res <- obj %>% select(1:3, 7, 4, 5:6)
+  } else {
+    res <- obj %>% select(1:3, 6, 4:5)
+  }
   cli::cli_process_done()
 
-  return(obj)
+  return(res)
 }
 
 
@@ -172,7 +177,7 @@ train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) 
 #' @return return a `training_signature` object with `multicox_pval` column.
 #' @export
 #' @examples
-#' \dotrun{
+#' \dontrun{
 #'   multi_cox_obj <- train_multicox(obj = uni_cox_obj, type = "discrete", covariate = c("Age", "Gender"), cut_p = 1)
 #'   multi_cox_obj <- train_multicox(obj = obj, type = "discrete", covariate = c("Age", "Gender"), cut_p = 1)
 #'   ## covariate = NULL
@@ -223,7 +228,7 @@ test_obj <- function(obj) {
   } else {
     if (!rlang::has_name(obj, "data")) {
       stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
-           `train_signature` function ti get the needed data!")
+           `train_signature` function to get the needed data!")
     }
   }
 }
