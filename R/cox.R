@@ -132,3 +132,18 @@ one_cox <- function(var, data, time = "time", event = "status", multicox = FALSE
 
   return(res)
 }
+
+# a optimal run_cox function
+optimal_cox <- function(data, time = "time", event = "status",
+                        variate, multicox = FALSE,
+                        global_method = c("likelihood", "wald", "logrank")) {
+  if (length(variate) < 100) {
+    run_cox(data = data, time = time, event = event,
+            variate = variate, multicox = multicox,
+            global_method = global_method)
+  } else {
+    run_cox_parallel(data = data, time = time, event = event,
+                     variate = variate, multicox = multicox,
+                     global_method = global_method)
+  }
+}

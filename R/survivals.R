@@ -52,13 +52,8 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
     dat <- surv_data[, c(id, time, event)] %>%
       dplyr::bind_cols(as.data.frame(t(exp_data[genes,])))
     ## whether use parallel
-    if (length(genes) < 100) {
-      cox_obj <- run_cox(data = dat, time = time, event = event,
-                         variate = genes, multicox = F, global_method = "wald")
-    } else {
-      cox_obj <- run_cox_parallel(data = dat, time = time, event = event, variate = genes,
-                         multicox = F, global_method = "wald")
-    }
+    cox_obj <- optimal_cox(data = dat, time = time, event = event,
+                           variate = genes, multicox = F, global_method = "wald")
     beta <- get_beta(cox_obj)
   } else {
     beta <- beta
@@ -161,7 +156,7 @@ train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) 
   }
   cli::cli_process_start("Doing univariate cox analysis")
   var <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
-  obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, run_cox_parallel, variate = var, multicox = FALSE,
+  obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, optimal_cox, variate = var, multicox = FALSE,
                          global_method = "wald")) %>%
     dplyr::mutate(unicox_pval = purrr::map(unicox_pval, dplyr::pull, p_value) %>% unlist()) %>%
     dplyr::filter(unicox_pval < cut_p) %>%
@@ -216,7 +211,7 @@ train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = 
     stopifnot(is.element(covariate, colnames(obj$data[[1]])))
     uni_type <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
     covars <- c(uni_type, covariate)
-    obj %<>% dplyr::mutate(multicox_pval = purrr::map(data, run_cox_parallel, variate = covars, multicox = TRUE,
+    obj %<>% dplyr::mutate(multicox_pval = purrr::map(data, optimal_cox, variate = covars, multicox = TRUE,
                                                       global_method = "wald")) %>%
       dplyr::mutate(multicox_pval = purrr::map(multicox_pval, function(x) {
         x %>% filter(Variable == uni_type) %>% select(p_value)
