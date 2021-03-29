@@ -21,15 +21,18 @@
 #' @import cli
 #' @export
 #' @examples
+#' \dotrun{
 #' data(blca_clinical)
 #' data(blca_exp)
-#' train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
-#'                 exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
-#'                 beta = NULL, labels_value = 1, cut_p = 1, keep_data = F)
+#' obj <- train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
+#'                        exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
+#'                        beta = NULL, labels_value = NULL, cut_p = 1, keep_data = T)
+#' }
+#'
 
 train_signature <- function(surv_data, id = "ids", time = "time", event = "status",
                             exp_data, genes, num, beta = NULL, labels_value = NULL,
-                            cut_p = NULL, keep_data = FALSE) {
+                            cut_p = NULL, keep_data = TRUE) {
   cli::cli_process_start("Checking the data")
   stopifnot(is.data.frame(surv_data))
   stopifnot(all(is.element(c(id, time, event), colnames(surv_data))))
@@ -48,8 +51,14 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
   if (is.null(beta)) {
     dat <- surv_data[, c(id, time, event)] %>%
       dplyr::bind_cols(as.data.frame(t(exp_data[genes,])))
-    cox_obj <- run_cox_parallel(data = dat, time = time, event = event,
-                                variate = genes, multicox = F, global_method = "wald", verbose = F)
+    ## whether use parallel
+    if (length(genes) < 100) {
+      cox_obj <- run_cox(data = dat, time = time, event = event,
+                         variate = genes, multicox = F, global_method = "wald")
+    } else {
+      cox_obj <- run_cox_parallel(data = dat, time = time, event = event, variate = genes,
+                         multicox = F, global_method = "wald")
+    }
     beta <- get_beta(cox_obj)
   } else {
     beta <- beta
@@ -67,7 +76,7 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
     x %<>% t() %>% as.data.frame()
     purrr::map(x, function(y) {
       risk_score(exp_data = exp_data, genes = y, beta = beta) %>%
-        dplyr::left_join(dplyr::select(surv_data, dplyr::all_of(id), dplyr::all_of(time), dplyr::all_of(event)), by = id)
+        dplyr::left_join(surv_data, by = id)
       })
     }) %>%
     purrr::map(~purrr::reduce(.x, bind_rows)) %>%
@@ -124,6 +133,103 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
 }
 
 
+#' @name train_unicox
+#' @title Do the univariate cox analysis in training data sets.
+#' @param obj the `training_signature` object get from \link{train_signature}() .
+#' @param type Use which variate to do the univariate cox analysis, if `continuous`, use the `risk_score`;
+#' if `discrete`, use the `labels`.
+#' @param cut_p the cutoff p value of univariate cox analysis. Default 0.05.
+#' @importFrom dplyr mutate filter select pull
+#' @importFrom purrr map
+#' @importFrom cli cli_process_start cli_process_done
+#' @return return a `training_signature` object with `unicox_pval` column.
+#' @export
+#' @example
+#' \dotrun{
+#'   uni_cox_obj <- train_unicox(obj, type = "discrete", cut_p = 1)
+#' }
+#'
+train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) {
+
+  if (!is(obj, "training_signature")) {
+    stop("The `obj` is not a `training_signature` object!")
+  } else {
+    if (!rlang::has_name(obj, "data")) {
+      stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
+           `train_signature` function ti get the needed data!")
+    }
+  }
+  cli::cli_process_start("Doing univariate cox analysis")
+  var <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
+  obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, run_cox_parallel, variate = var, multicox = FALSE,
+                         global_method = "wald")) %>%
+    dplyr::mutate(unicox_pval = purrr::map(unicox_pval, dplyr::pull, p_value) %>% unlist()) %>%
+    dplyr::filter(unicox_pval < cut_p) %>%
+    dplyr::select(c(1:3, 6, 4:5))
+  cli::cli_process_done()
+
+  return(obj)
+}
+
+
+#' @name train_multicox
+#' @title Do the multivariate cox analysis in training data sets.
+#' @param obj the `training_signature` object get from \link{train_signature}() .
+#' @param type Use which variate to do the multivariate cox analysis, if `continuous`, use the `risk_score`;
+#' if `discrete`, use the `labels`.
+#' @param cut_p the cutoff p value of multivariate cox analysis. Default 0.05.
+#' @importFrom dplyr mutate filter select pull
+#' @importFrom purrr map
+#' @importFrom cli cli_process_start cli_process_done
+#' @return return a `training_signature` object with `multicox_pval` column.
+#' @export
+#' @examples
+#' \dotrun{
+#'   multi_cox_obj <- train_multicox(obj = uni_cox_obj, type = "discrete", covariate = c("Age", "Gender"), cut_p = 1)
+#'   multi_cox_obj <- train_multicox(obj = obj, type = "discrete", covariate = c("Age", "Gender"), cut_p = 1)
+#'   ## covariate = NULL
+#'   multi_cox_obj <- train_multicox(obj = uni_cox_obj, type = "discrete", cut_p = 1)
+#' }
+
+train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = NULL, cut_p = 0.05) {
+  if (!is(obj, "training_signature")) {
+    stop("The `obj` is not a `training_signature` object!")
+  } else {
+    if (!rlang::has_name(obj, "data")) {
+      stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
+           `train_signature` function ti get the needed data!")
+    }
+  }
+  ## type
+  type <- match.arg(type)
+
+  cli::cli_process_start("Doing Multivariate cox analysis")
+  if (is.null(covariate)) {
+    cli::cli_alert_info("The `covariate` is NULL, keep univariate result!")
+    ## check whether done univariate cox analysis
+    if (rlang::has_name(obj, "unicox_pval")) {
+      res <- obj
+    } else {
+      res <- train_unicox(obj, type = type, cut_p = cut_p)
+    }
+  } else {
+    stopifnot(is.element(covariate, colnames(obj$data[[1]])))
+    uni_type <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
+    covars <- c(uni_type, covariate)
+    obj %<>% dplyr::mutate(multicox_pval = purrr::map(data, run_cox_parallel, variate = covars, multicox = TRUE,
+                                                      global_method = "wald")) %>%
+      dplyr::mutate(multicox_pval = purrr::map(multicox_pval, function(x) {
+        x %>% filter(Variable == uni_type) %>% select(p_value)
+        }) %>% unlist()) %>%
+      dplyr::filter(multicox_pval < cut_p) %>%
+      dplyr::select(c(1:4, 7, 5:6))
+  }
+  cli::cli_process_done()
+
+  return(obj)
+}
+
+
 #' @name validate_signature
 #' @title Validate the signature model in a data sets
 #' @description
@@ -136,23 +242,4 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
 validate_signature <- function(train_sig = NULL, surv_data, id = "ids", time = "time", event = "status",
                                exp_data, cut_p = NULL) {
 
-}
-
-
-#' @title train_unicox
-#'
-train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) {
-
-  if (!is(obj, "training_signature")) {
-    stop("The `obj` is not a `training_signature` object!")
-  }
-
-  var <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
-  obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, run_cox_parallel, variate = var, multicox = FALSE,
-                         global_method = "wald", verbose = FALSE)) %>%
-    dplyr::mutate(unicox_pval = purrr::map(unicox_pval, dplyr::pull, p_value) %>% unlist()) %>%
-    dplyr::filter(unicox_pval < cut_p) %>%
-    dplyr::select(c(1:3, 6, 4:5))
-  class(obj) <- append(class(obj), "train_unicox")
-  return(obj)
 }

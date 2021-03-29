@@ -10,10 +10,7 @@ run_cox_parallel(
   event = "status",
   variate,
   multicox = FALSE,
-  global_method = c("likelihood", "wald", "logrank"),
-  nThread = 2,
-  maxSize = 500,
-  verbose = TRUE
+  global_method = c("likelihood", "wald", "logrank")
 )
 }
 \arguments{
@@ -31,12 +28,6 @@ run_cox_parallel(
 should be one of "likelihood", "wald", "logrank".
 The likelihood-ratio test, Wald test, and score logrank statistics.
 These three methods are asymptotically equivalent. Default is "wald".}
-
-\item{nThread}{The number of threads.}
-
-\item{maxSize}{The max memory size in global, default 500MB, the unit is MB.}
-
-\item{verbose}{output other useful information.}
 }
 \value{
 return a \code{run_cox} object including the summary information of cox analysis

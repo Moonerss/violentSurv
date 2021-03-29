@@ -15,7 +15,7 @@ train_signature(
   beta = NULL,
   labels_value = NULL,
   cut_p = NULL,
-  keep_data = FALSE
+  keep_data = TRUE
 )
 }
 \arguments{
@@ -48,9 +48,12 @@ It may be very important for follow-up analysis.}
 this function will filter the signature are not significant in the logrank test
 }
 \examples{
+\dotrun{
 data(blca_clinical)
 data(blca_exp)
-train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
-                exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
-                beta = NULL, labels_value = 1, cut_p = 1, keep_data = F)
+obj <- train_signature(surv_data = blca_clinical, id = "ids", time = "time", event = "status",
+                       exp_data = blca_exp, genes = c("IL6", "TGFB3", "VHL", "CXCR4"), num = 2:4,
+                       beta = NULL, labels_value = NULL, cut_p = 1, keep_data = T)
+}
+
 }
