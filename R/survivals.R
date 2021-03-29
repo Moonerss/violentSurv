@@ -146,14 +146,7 @@ train_signature <- function(surv_data, id = "ids", time = "time", event = "statu
 #'
 train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) {
 
-  if (!is(obj, "training_signature")) {
-    stop("The `obj` is not a `training_signature` object!")
-  } else {
-    if (!rlang::has_name(obj, "data")) {
-      stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
-           `train_signature` function ti get the needed data!")
-    }
-  }
+  test_obj(obj)
   cli::cli_process_start("Doing univariate cox analysis")
   var <- ifelse(match.arg(type) == "continuous", "risk_score", "labels")
   obj %<>% dplyr::mutate(unicox_pval = purrr::map(data, optimal_cox, variate = var, multicox = FALSE,
@@ -187,14 +180,8 @@ train_unicox <- function(obj, type = c("continuous", "discrete"), cut_p = 0.05) 
 #' }
 
 train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = NULL, cut_p = 0.05) {
-  if (!is(obj, "training_signature")) {
-    stop("The `obj` is not a `training_signature` object!")
-  } else {
-    if (!rlang::has_name(obj, "data")) {
-      stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
-           `train_signature` function ti get the needed data!")
-    }
-  }
+
+  test_obj(obj)
   ## type
   type <- match.arg(type)
 
@@ -214,14 +201,18 @@ train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = 
     obj %<>% dplyr::mutate(multicox_pval = purrr::map(data, optimal_cox, variate = covars, multicox = TRUE,
                                                       global_method = "wald")) %>%
       dplyr::mutate(multicox_pval = purrr::map(multicox_pval, function(x) {
-        x %>% filter(Variable == uni_type) %>% select(p_value)
+        x %>% filter(stringr::str_detect(Variable, uni_type)) %>% select(p_value)
         }) %>% unlist()) %>%
-      dplyr::filter(multicox_pval < cut_p) %>%
-      dplyr::select(c(1:4, 7, 5:6))
+      dplyr::filter(multicox_pval < cut_p)
+    if (rlang::has_name(obj, "unicox_pval")) {
+      res <- obj %>% select(1:4, 7, 5:6)
+    } else {
+      res <- obj %>% select(1:3, 6, 4:5)
+    }
   }
   cli::cli_process_done()
 
-  return(obj)
+  return(res)
 }
 
 
@@ -236,5 +227,19 @@ train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = 
 #'
 validate_signature <- function(train_sig = NULL, surv_data, id = "ids", time = "time", event = "status",
                                exp_data, cut_p = NULL) {
+  test_obj(obj = train_sig)
 
+}
+
+
+### useful function ######
+test_obj <- function(obj) {
+  if (!is(obj, "training_signature")) {
+    stop("The `obj` is not a `training_signature` object!")
+  } else {
+    if (!rlang::has_name(obj, "data")) {
+      stop("There is no information to do the analysis, please set the `keep_data` to TRUE in the
+           `train_signature` function ti get the needed data!")
+    }
+  }
 }
