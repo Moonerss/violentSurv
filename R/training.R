@@ -216,22 +216,6 @@ train_multicox <- function(obj, type = c("continuous", "discrete"), covariate = 
 }
 
 
-#' @name validate_signature
-#' @title Validate the signature model in a data sets
-#' @description
-#' @param
-#' @export
-#' @author
-#' @return
-#' @examples
-#'
-validate_signature <- function(train_sig = NULL, surv_data, id = "ids", time = "time", event = "status",
-                               exp_data, cut_p = NULL) {
-  test_obj(obj = train_sig)
-
-}
-
-
 ### useful function ######
 test_obj <- function(obj) {
   if (!is(obj, "training_signature")) {
