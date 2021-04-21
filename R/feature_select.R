@@ -1,5 +1,5 @@
 #' @description: learn models for elastic net, lasso, ridge and adaptive elastic net
-#' @title learn_glmnet
+#' @title select_glmnet
 #' @param gene_data matrix of expression data (row: gene, column: patients)
 #' @param y_cox Surv object
 #' @param method "elastic" for elastic net, "lasso" for lasso, "ridge" for ridge and "adaptive" for adaptive elastic net
@@ -8,7 +8,7 @@
 #'
 #' @export
 #'
-learn_glmnet <- function(gene_data, y_cox, method = c("lasso", "elastic", "ridge", "adaptive"),
+select_glmnet <- function(gene_data, y_cox, method = c("lasso", "elastic", "ridge", "adaptive"),
                          nfold = 10, alpha = 0.3, lambda = c("lambda.min", "lambda.1se")) {
 
   ## set the result
